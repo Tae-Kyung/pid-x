@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/search?q=keyword — 전체 검색 (라인/장비/패키지)
 export async function GET(
@@ -11,6 +11,8 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q')?.trim() || '';
   if (!q || q.length < 2) return NextResponse.json([]);
@@ -18,19 +20,19 @@ export async function GET(
   const pattern = `%${q}%`;
 
   const [linesRes, equipRes, pkgRes] = await Promise.all([
-    supabase
+    db
       .from('pipe_lines')
       .select('id, line_number, source_pages')
       .eq('project_id', projectId)
       .ilike('line_number', pattern)
       .limit(20),
-    supabase
+    db
       .from('equipment')
       .select('id, tag_no, source_pages')
       .eq('project_id', projectId)
       .ilike('tag_no', pattern)
       .limit(20),
-    supabase
+    db
       .from('test_packages')
       .select('id, package_no, source_page')
       .eq('project_id', projectId)

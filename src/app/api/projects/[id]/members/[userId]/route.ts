@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // PUT /api/projects/:id/members/:userId — 역할 변경
 export async function PUT(
@@ -16,7 +16,9 @@ export async function PUT(
     return NextResponse.json({ error: 'Invalid role' }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const db = createServiceClient();
+
+  const { error } = await db
     .from('project_members')
     .update({ role })
     .eq('project_id', projectId)
@@ -36,7 +38,9 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { error } = await supabase
+  const db = createServiceClient();
+
+  const { error } = await db
     .from('project_members')
     .delete()
     .eq('project_id', projectId)

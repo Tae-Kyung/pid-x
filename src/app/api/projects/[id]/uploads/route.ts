@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
 
@@ -13,7 +13,9 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data, error } = await supabase
+  const db = createServiceClient();
+
+  const { data, error } = await db
     .from('pdf_uploads')
     .select('*')
     .eq('project_id', projectId)
@@ -57,9 +59,12 @@ export async function POST(
   const uploadId = crypto.randomUUID();
   const storagePath = `${projectId}/${uploadId}/${file.name}`;
 
+  // Service role 클라이언트 (Storage + DB INSERT — RLS 우회)
+  const adminClient = createServiceClient();
+
   // Supabase Storage 업로드
   const arrayBuffer = await file.arrayBuffer();
-  const { error: storageError } = await supabase.storage
+  const { error: storageError } = await adminClient.storage
     .from('pdf-uploads')
     .upload(storagePath, arrayBuffer, {
       contentType: 'application/pdf',
@@ -71,7 +76,7 @@ export async function POST(
   }
 
   // DB 레코드 생성
-  const { data: upload, error: dbError } = await supabase
+  const { data: upload, error: dbError } = await adminClient
     .from('pdf_uploads')
     .insert({
       id: uploadId,
@@ -88,7 +93,7 @@ export async function POST(
 
   if (dbError) {
     // DB 실패 시 스토리지 정리
-    await supabase.storage.from('pdf-uploads').remove([storagePath]);
+    await adminClient.storage.from('pdf-uploads').remove([storagePath]);
     return NextResponse.json({ error: `DB 저장 실패: ${dbError.message}` }, { status: 500 });
   }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects — 프로젝트 목록
 export async function GET() {
@@ -7,8 +7,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   // RLS가 자동으로 사용자의 프로젝트만 반환
-  const { data: projects, error } = await supabase
+  const { data: projects, error } = await db
     .from('projects')
     .select('*')
     .eq('is_deleted', false)
@@ -20,9 +22,9 @@ export async function GET() {
   const projectsWithStats = await Promise.all(
     (projects ?? []).map(async (project) => {
       const [lines, equipment, packages] = await Promise.all([
-        supabase.from('pipe_lines').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
-        supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
-        supabase.from('test_packages').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+        db.from('pipe_lines').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+        db.from('equipment').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
+        db.from('test_packages').select('id', { count: 'exact', head: true }).eq('project_id', project.id),
       ]);
       return {
         ...project,
@@ -49,8 +51,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '프로젝트명은 필수입니다.' }, { status: 400 });
   }
 
-  // 프로젝트 생성
-  const { data: project, error: projectError } = await supabase
+  // Service role 클라이언트로 생성 (RLS 우회 — 인증은 위에서 이미 확인)
+  const adminClient = createServiceClient();
+
+  const { data: project, error: projectError } = await adminClient
     .from('projects')
     .insert({ name: name.trim(), description, client, owner_id: user.id })
     .select()
@@ -59,7 +63,7 @@ export async function POST(request: Request) {
   if (projectError) return NextResponse.json({ error: projectError.message }, { status: 500 });
 
   // owner를 admin 멤버로 자동 추가
-  await supabase.from('project_members').insert({
+  await adminClient.from('project_members').insert({
     user_id: user.id,
     project_id: project.id,
     role: 'admin',

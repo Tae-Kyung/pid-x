@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import {
   createWorkbook,
   applyHeaderStyle,
@@ -19,18 +19,20 @@ export async function POST(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   const { type } = await request.json();
 
   const wb = createWorkbook();
 
   if (type === 'line-list') {
-    await generateLineList(wb, supabase, projectId);
+    await generateLineList(wb, db, projectId);
   } else if (type === 'equipment') {
-    await generateEquipment(wb, supabase, projectId);
+    await generateEquipment(wb, db, projectId);
   } else if (type === 'packages') {
-    await generatePackages(wb, supabase, projectId);
+    await generatePackages(wb, db, projectId);
   } else if (type === 'summary') {
-    await generateSummary(wb, supabase, projectId);
+    await generateSummary(wb, db, projectId);
   } else {
     return NextResponse.json({ error: 'Invalid report type' }, { status: 400 });
   }

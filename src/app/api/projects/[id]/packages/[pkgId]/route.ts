@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/packages/:pkgId — 패키지 상세
 export async function GET(
@@ -11,7 +11,9 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: pkg, error } = await supabase
+  const db = createServiceClient();
+
+  const { data: pkg, error } = await db
     .from('test_packages')
     .select('*')
     .eq('id', pkgId)
@@ -21,7 +23,7 @@ export async function GET(
   if (error || !pkg) return NextResponse.json({ error: '패키지를 찾을 수 없습니다.' }, { status: 404 });
 
   // 포함 라인 (pkg_line_map JOIN)
-  const { data: lineMap } = await supabase
+  const { data: lineMap } = await db
     .from('pkg_line_map')
     .select('pipeline_id')
     .eq('package_id', pkgId);
@@ -29,7 +31,7 @@ export async function GET(
   let lines: unknown[] = [];
   if (lineMap && lineMap.length > 0) {
     const lineIds = (lineMap as { pipeline_id: string }[]).map((m) => m.pipeline_id);
-    const { data: lineData } = await supabase
+    const { data: lineData } = await db
       .from('pipe_lines')
       .select('id, line_number, nominal_size, service_code')
       .in('id', lineIds);
@@ -37,7 +39,7 @@ export async function GET(
   }
 
   // Golden Joints
-  const { data: joints } = await supabase
+  const { data: joints } = await db
     .from('golden_joints')
     .select('*')
     .eq('project_id', projectId)
@@ -56,11 +58,13 @@ export async function PUT(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   const body = await request.json();
   const updates: Record<string, unknown> = {};
   if (body.status !== undefined) updates.status = body.status;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('test_packages')
     .update(updates)
     .eq('id', pkgId)

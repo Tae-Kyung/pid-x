@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id — 프로젝트 상세
 export async function GET(
@@ -11,7 +11,9 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data: project, error } = await supabase
+  const db = createServiceClient();
+
+  const { data: project, error } = await db
     .from('projects')
     .select('*')
     .eq('id', id)
@@ -35,6 +37,8 @@ export async function PUT(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   const body = await request.json();
   const updates: {
     name?: string;
@@ -45,7 +49,7 @@ export async function PUT(
   if (body.description !== undefined) updates.description = body.description;
   if (body.client !== undefined) updates.client = body.client;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('projects')
     .update(updates)
     .eq('id', id)
@@ -67,7 +71,9 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { error } = await supabase
+  const db = createServiceClient();
+
+  const { error } = await db
     .from('projects')
     .update({ is_deleted: true, deleted_at: new Date().toISOString() })
     .eq('id', id);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/members — 멤버 목록
 export async function GET(
@@ -11,15 +11,17 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   // 프로젝트 owner
-  const { data: project } = await supabase
+  const { data: project } = await db
     .from('projects')
     .select('owner_id')
     .eq('id', projectId)
     .single();
 
   // 멤버 목록
-  const { data: members } = await supabase
+  const { data: members } = await db
     .from('project_members')
     .select('user_id, role, invited_at')
     .eq('project_id', projectId);
@@ -29,7 +31,7 @@ export async function GET(
   if (project?.owner_id) userIds.add(project.owner_id);
   for (const m of (members ?? [])) userIds.add(m.user_id);
 
-  const { data: profiles } = await supabase
+  const { data: profiles } = await db
     .from('profiles')
     .select('id, name, avatar_url')
     .in('id', [...userIds]);
@@ -64,8 +66,10 @@ export async function POST(
   const { email, role = 'viewer' } = await request.json();
   if (!email) return NextResponse.json({ error: 'Email required' }, { status: 400 });
 
+  const db = createServiceClient();
+
   // 이메일로 프로필 찾기
-  const { data: profiles } = await supabase
+  const { data: profiles } = await db
     .from('profiles')
     .select('id')
     .limit(1);
@@ -77,7 +81,7 @@ export async function POST(
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  const { error } = await supabase
+  const { error } = await db
     .from('project_members')
     .upsert(
       { project_id: projectId, user_id: profiles[0].id, role },

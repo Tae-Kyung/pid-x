@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/dashboard — 프로젝트 통계
 export async function GET(
@@ -10,6 +10,8 @@ export async function GET(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const db = createServiceClient();
 
   // 병렬 집계 쿼리
   const [
@@ -25,22 +27,22 @@ export async function GET(
     pkgStatusRes,
     unitStatsRes,
   ] = await Promise.all([
-    supabase.from('pipe_lines').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
-    supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
-    supabase.from('test_packages').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
-    supabase.from('instruments').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
-    supabase.from('drawings').select('id, unit_id!inner(project_id)', { count: 'exact', head: true }),
-    supabase.from('units').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
+    db.from('pipe_lines').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
+    db.from('equipment').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
+    db.from('test_packages').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
+    db.from('instruments').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
+    db.from('drawings').select('id, unit_id!inner(project_id)', { count: 'exact', head: true }),
+    db.from('units').select('id', { count: 'exact', head: true }).eq('project_id', projectId),
     // 사이즈별 분포
-    supabase.from('pipe_lines').select('nominal_size').eq('project_id', projectId),
+    db.from('pipe_lines').select('nominal_size').eq('project_id', projectId),
     // 서비스별 분포
-    supabase.from('pipe_lines').select('service_code').eq('project_id', projectId),
+    db.from('pipe_lines').select('service_code').eq('project_id', projectId),
     // 매체별 분포
-    supabase.from('test_packages').select('test_medium').eq('project_id', projectId),
+    db.from('test_packages').select('test_medium').eq('project_id', projectId),
     // 패키지 상태별
-    supabase.from('test_packages').select('status').eq('project_id', projectId),
+    db.from('test_packages').select('status').eq('project_id', projectId),
     // 유닛별 통계
-    supabase.from('units').select('id, code, name').eq('project_id', projectId),
+    db.from('units').select('id, code, name').eq('project_id', projectId),
   ]);
 
   // 사이즈 분포 집계
@@ -76,8 +78,8 @@ export async function GET(
   const unitDistribution = await Promise.all(
     units.map(async (unit) => {
       const [ul, ue] = await Promise.all([
-        supabase.from('pipe_lines').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('unit_id', unit.id),
-        supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('unit_id', unit.id),
+        db.from('pipe_lines').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('unit_id', unit.id),
+        db.from('equipment').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('unit_id', unit.id),
       ]);
       return {
         unit: unit.code,

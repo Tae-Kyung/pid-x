@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/viewer — 최신 업로드의 PDF signed URL + 메타데이터
 export async function GET(
@@ -11,8 +11,10 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   // 최신 완료된 업로드 찾기
-  const { data: upload } = await supabase
+  const { data: upload } = await db
     .from('pdf_uploads')
     .select('id, filename, storage_path, total_pages, parse_status')
     .eq('project_id', projectId)
@@ -26,7 +28,7 @@ export async function GET(
   }
 
   // Signed URL 생성 (1시간)
-  const { data: signedUrlData } = await supabase.storage
+  const { data: signedUrlData } = await db.storage
     .from('pdf-uploads')
     .createSignedUrl(upload.storage_path, 3600);
 

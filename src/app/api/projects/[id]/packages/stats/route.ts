@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/packages/stats
 export async function GET(
@@ -11,7 +11,9 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data } = await supabase
+  const db = createServiceClient();
+
+  const { data } = await db
     .from('test_packages')
     .select('system_code, status, test_medium')
     .eq('project_id', projectId);

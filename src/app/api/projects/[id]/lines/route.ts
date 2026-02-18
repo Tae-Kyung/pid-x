@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/lines — 라인 목록 (필터/정렬/페이지네이션)
 export async function GET(
@@ -10,6 +10,8 @@ export async function GET(
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const db = createServiceClient();
 
   const { searchParams } = new URL(request.url);
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
@@ -22,7 +24,7 @@ export async function GET(
   const units = searchParams.getAll('unit');
   const spec = searchParams.get('spec') || '';
 
-  let query = supabase
+  let query = db
     .from('pipe_lines')
     .select('*', { count: 'exact' })
     .eq('project_id', projectId);
@@ -63,6 +65,8 @@ export async function PATCH(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   const { ids, updates } = await request.json();
   if (!Array.isArray(ids) || ids.length === 0) {
     return NextResponse.json({ error: 'ids 배열이 필요합니다.' }, { status: 400 });
@@ -83,7 +87,7 @@ export async function PATCH(
   // status → 'modified'
   if (!safeUpdates.status) safeUpdates.status = 'modified';
 
-  const { error } = await supabase
+  const { error } = await db
     .from('pipe_lines')
     .update(safeUpdates)
     .eq('project_id', projectId)

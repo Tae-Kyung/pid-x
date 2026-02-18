@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // GET /api/projects/:id/lines/:lineId
 export async function GET(
@@ -11,7 +11,9 @@ export async function GET(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data, error } = await supabase
+  const db = createServiceClient();
+
+  const { data, error } = await db
     .from('pipe_lines')
     .select('*')
     .eq('id', lineId)
@@ -32,6 +34,8 @@ export async function PUT(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const db = createServiceClient();
+
   const body = await request.json();
   const updates: Record<string, unknown> = {};
   if (body.nominal_size !== undefined) updates.nominal_size = body.nominal_size;
@@ -46,7 +50,7 @@ export async function PUT(
   // 자동으로 modified 상태
   if (!updates.status) updates.status = 'modified';
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('pipe_lines')
     .update(updates)
     .eq('id', lineId)
