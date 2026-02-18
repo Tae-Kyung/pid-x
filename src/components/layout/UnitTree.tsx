@@ -25,7 +25,10 @@ export function UnitTree({ projectId }: Props) {
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/dashboard`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         if (data.unit_distribution) {
           setUnits(

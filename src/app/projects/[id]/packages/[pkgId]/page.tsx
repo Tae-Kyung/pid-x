@@ -46,7 +46,10 @@ export default function PackageDetailPage() {
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/packages/${pkgId}`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((d) => { setPkg(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [projectId, pkgId]);

@@ -43,8 +43,14 @@ export default function PackagesPage() {
 
   useEffect(() => {
     Promise.all([
-      fetch(`/api/projects/${projectId}/packages`).then((r) => r.json()),
-      fetch(`/api/projects/${projectId}/packages/stats`).then((r) => r.json()),
+      fetch(`/api/projects/${projectId}/packages`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+      fetch(`/api/projects/${projectId}/packages/stats`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
     ]).then(([pkgs, s]) => {
       setPackages(pkgs);
       setStats(s);
@@ -52,7 +58,7 @@ export default function PackagesPage() {
       const first3 = (s.systems || []).slice(0, 3).map((sys: { name: string }) => sys.name);
       setExpandedSystems(new Set(first3));
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [projectId]);
 
   // 시스템별 그룹핑

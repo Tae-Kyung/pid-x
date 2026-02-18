@@ -31,8 +31,12 @@ export default function EquipmentPage() {
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/equipment/stats`)
-      .then((r) => r.json())
-      .then((d) => setTypeStats(d.types || []));
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => setTypeStats(d.types || []))
+      .catch(() => {});
   }, [projectId]);
 
   const loadData = useCallback(async () => {

@@ -25,11 +25,15 @@ export function LineListFilters({ projectId, onFilterChange }: Props) {
   // 필터 옵션 로드
   useEffect(() => {
     fetch(`/api/projects/${projectId}/lines/stats`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setSizes(data.sizes || []);
         setServices(data.services || []);
-      });
+      })
+      .catch(() => {});
   }, [projectId]);
 
   // 디바운스 검색
